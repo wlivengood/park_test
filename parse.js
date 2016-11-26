@@ -13,21 +13,22 @@ function parse(desc) {
 }
 
 function getDetails(desc) {
-	var match = desc.match(/^NO PARKING *(.*)/i);
+	var match = desc.match(/NO PARKING *(.*)/i);
 	if (match)
 		return parseNoParking(match[1]);
-	match = desc.match(/^NO STANDING *(.*)/i)
+	match = desc.match(/NO STANDING/i)
 	if (match)
-		return parseNoStanding(match[1]);
-	match = desc.match(/^NO STOPPING *(.*)/i)
+		return parseNoStanding(desc);
+	match = desc.match(/NO STOPPING *(.*)/i)
 	if (match)
 		return parsesNoStopping(match[1]);
-	match = desc.match(/^BUS STOP *(.*)/i);
+	match = desc.match(/BUS STOP *(.*)/i);
 	if (match)
 		return parseBusStop(match[1]);
-	if (desc.match(/^([0-9\/]+) *H(OU)?R\.? *(METERED|MUNI-METER)? *PARKING */gi)
-		|| desc.match(/^([0-9\/]+) *HMP */)) {
-		return {type: "METER", schedule: null};
+	if (desc.match(/^([0-9\/]+) *H(OU)?R\.? *(METERED|MUNI-METER)? *PARKING */i)
+		|| desc.match(/^([0-9\/]+) *HMP */i)) {
+		var schedule = parseTimePeriods(desc);
+		return {type: "METER", schedule: schedule};
 	}
 	return {
 		type: "UNKOWN",
@@ -53,9 +54,15 @@ function parseNoParking(desc) {
 }
 
 function parseNoStanding(desc) {
-	if (desc.match(/^HANDICAP BUS/))
+	var days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+	if (desc.match(/HANDICAP BUS/))
 		return {type: "BUS INFO", schedule: null};
 	var schedule = parseTimePeriods(desc);
+	if (desc.match(/FIRE ZONE/) || desc.match(/NO STANDING( W\/ SINGLE ARROW)?$/)) {
+		days.forEach(function(day) {
+			schedule[day] = ["12AM", "12AM"];
+		});
+	}
 	return {type: "NO STANDING", schedule: schedule};
 }
 
@@ -69,7 +76,7 @@ function parseBusStop(desc) {
 }
 
 function parseTimePeriods(desc) {
-	var days = ["MON", "TUE", "WED", "THURS", "FRI", "SAT", "SUN"];
+	var days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 	var schedule = {
 		"MON": [],
 		"TUE": [],
@@ -81,6 +88,7 @@ function parseTimePeriods(desc) {
 	};
 	if (desc.match(/^ANYTIME/i)) {
 		days.forEach((day) => schedule[day] = ["12AM", "12AM"]);
+		return schedule;
 	}
 	var dayRE = /MON|TUE|WED|THU|FRI|SAT|SUN/ig;
 	var timeRE = /((\d\d?)(:(\d\d))? *([AP]M)|NOON|MIDNIGHT)/ig;
